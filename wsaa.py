@@ -10,8 +10,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 
-"Módulo para obtener un ticket de autorización del web service WSAA de AFIP"
-
+# Módulo para obtener un ticket de autorización del web service WSAA de AFIP"
 # Basado en wsaa-client.php de Gerardo Fisanotti - DvSHyS/DiOPIN/AFIP - 13-apr-07
 # Definir WSDL, CERT, PRIVATEKEY, PASSPHRASE, SERVICE, WSAAURL
 # Devuelve TA.xml (ticket de autorización de WSAA)
@@ -31,14 +30,15 @@ import traceback
 import warnings
 import unicodedata
 from pysimplesoap.client import SimpleXMLElement
-from .utils import inicializar_y_capturar_excepciones, BaseWS, get_install_dir, \
+from utils import inicializar_y_capturar_excepciones, BaseWS, get_install_dir, \
     exception_info, safe_console, date
+
 try:
     from M2Crypto import BIO, Rand, SMIME, SSL
 except ImportError:
     ex = exception_info()
     warnings.warn("No es posible importar M2Crypto (OpenSSL)")
-    warnings.warn(ex['msg'])            # revisar instalación y DLLs de OpenSSL
+    warnings.warn(ex['msg'])  # revisar instalación y DLLs de OpenSSL
     BIO = Rand = SMIME = SSL = None
     # utilizar alternativa (ejecutar proceso por separado)
     from subprocess import Popen, PIPE
@@ -47,24 +47,25 @@ except ImportError:
 
 # Constantes (si se usa el script de linea de comandos)
 WSDL = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl"  # El WSDL correspondiente al WSAA
-CERT = "reingart.crt"        # El certificado X.509 obtenido de Seg. Inf.
+CERT = "reingart.crt"  # El certificado X.509 obtenido de Seg. Inf.
 PRIVATEKEY = "reingart.key"  # La clave privada del certificado CERT
 PASSPHRASE = "xxxxxxx"  # La contraseña para firmar (si hay)
-SERVICE = "wsfe"        # El nombre del web service al que se le pide el TA
+SERVICE = "wsfe"  # El nombre del web service al que se le pide el TA
 
 # WSAAURL: la URL para acceder al WSAA, verificar http/https y wsaa/wsaahomo
 # WSAAURL = "https://wsaa.afip.gov.ar/ws/services/LoginCms" # PRODUCCION!!!
 WSAAURL = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"  # homologacion (pruebas)
 SOAP_ACTION = 'http://ar.gov.afip.dif.facturaelectronica/'  # Revisar WSDL
-SOAP_NS = "http://wsaa.view.sua.dvadac.desein.afip.gov"     # Revisar WSDL
+SOAP_NS = "http://wsaa.view.sua.dvadac.desein.afip.gov"  # Revisar WSDL
 
 # Verificación del web server remoto, necesario para verificar canal seguro
 CACERT = "conf/afip_ca_info.crt"  # WSAA CA Cert (Autoridades de Confiaza)
 
 HOMO = False
 TYPELIB = False
-DEFAULT_TTL = 60 * 60 * 5       # five hours
+DEFAULT_TTL = 60 * 60 * 5  # five hours
 DEBUG = False
+
 
 # No debería ser necesario modificar nada despues de esta linea
 
@@ -78,7 +79,7 @@ def create_tra(service=SERVICE, ttl=2400):
     tra.add_child('header')
     # El source es opcional. Si falta, toma la firma (recomendado).
     # tra.header.addChild('source','subject=...')
-    #tra.header.addChild('destination','cn=wsaahomo,o=afip,c=ar,serialNumber=CUIT 33693450239')
+    # tra.header.addChild('destination','cn=wsaahomo,o=afip,c=ar,serialNumber=CUIT 33693450239')
     tra.header.add_child('uniqueId', str(date('U')))
     tra.header.add_child('generationTime', str(date('c', date('U') - ttl)))
     tra.header.add_child('expirationTime', str(date('c', date('U') + ttl)))
@@ -91,9 +92,9 @@ def sign_tra(tra, cert=CERT, privatekey=PRIVATEKEY, passphrase=""):
 
     if BIO:
         # Firmar el texto (tra) usando m2crypto (openssl bindings para python)
-        buf = BIO.MemoryBuffer(tra)             # Crear un buffer desde el texto
-        #Rand.load_file('randpool.dat', -1)     # Alimentar el PRNG
-        s = SMIME.SMIME()                       # Instanciar un SMIME
+        buf = BIO.MemoryBuffer(tra)  # Crear un buffer desde el texto
+        # Rand.load_file('randpool.dat', -1)     # Alimentar el PRNG
+        s = SMIME.SMIME()  # Instanciar un SMIME
         # soporte de contraseña de encriptación (clave privada, opcional)
         callback = lambda *args, **kwarg: passphrase
         # Cargar clave privada y certificado
@@ -108,24 +109,24 @@ def sign_tra(tra, cert=CERT, privatekey=PRIVATEKEY, passphrase=""):
         key_bio = BIO.MemoryBuffer(privatekey.encode('utf8'))
         crt_bio = BIO.MemoryBuffer(cert.encode('utf8'))
         s.load_key_bio(key_bio, crt_bio, callback)  # (desde buffer)
-        p7 = s.sign(buf, 0)                      # Firmar el buffer
-        out = BIO.MemoryBuffer()                # Crear un buffer para la salida
-        s.write(out, p7)                        # Generar p7 en formato mail
+        p7 = s.sign(buf, 0)  # Firmar el buffer
+        out = BIO.MemoryBuffer()  # Crear un buffer para la salida
+        s.write(out, p7)  # Generar p7 en formato mail
         # Rand.save_file('randpool.dat')         # Guardar el estado del PRNG's
 
         # extraer el cuerpo del mensaje (parte firmada)
         msg = email.message_from_string(out.read().decode('utf8'))
         for part in msg.walk():
             filename = part.get_filename()
-            if filename == "smime.p7m":                 # es la parte firmada?
-                return part.get_payload(decode=False)   # devolver CMS
+            if filename == "smime.p7m":  # es la parte firmada?
+                return part.get_payload(decode=False)  # devolver CMS
     else:
         # Firmar el texto (tra) usando OPENSSL directamente
         try:
             if sys.platform.startswith("linux"):
                 openssl = "openssl"
             else:
-                if sys.maxsize <= 2**32:
+                if sys.maxsize <= 2 ** 32:
                     openssl = r"c:\OpenSSL-Win32\bin\openssl.exe"
                 else:
                     openssl = r"c:\OpenSSL-Win64\bin\openssl.exe"
@@ -148,10 +149,10 @@ def sign_tra(tra, cert=CERT, privatekey=PRIVATEKEY, passphrase=""):
                 key_f = None
             try:
                 out = Popen([openssl, "smime", "-sign",
-                        "-signer", cert, "-inkey", privatekey,
-                        "-outform","DER", "-nodetach"],
-                    stdin=PIPE, stdout=PIPE,
-                    stderr=PIPE).communicate(tra)[0]
+                             "-signer", cert, "-inkey", privatekey,
+                             "-outform", "DER", "-nodetach"],
+                            stdin=PIPE, stdout=PIPE,
+                            stderr=PIPE).communicate(tra)[0]
             finally:
                 # close temp files to delete them (just in case):
                 if cert_f:
@@ -237,7 +238,7 @@ class WSAA(BaseWS):
     @inicializar_y_capturar_excepciones
     def CrearClavePrivada(self, filename="privada.key", key_length=4096,
                           pub_exponent=0x10001, passphrase=""):
-        "Crea una clave privada (private key)"
+        #Crea una clave privada (private key)
         from M2Crypto import RSA, EVP
 
         # only protect if passphrase was given (it will fail otherwise)
@@ -248,7 +249,7 @@ class WSAA(BaseWS):
         bio = BIO.MemoryBuffer()
         rsa_key_pair.save_key_bio(bio, chiper, callback)
         f = open(filename, "w")
-        f.write(bio.read())
+        f.write(str(bio.read(None)))
         f.close()
         # create a public key to sign the certificate request:
         self.pkey = EVP.PKey(md='sha256')
@@ -285,7 +286,7 @@ class WSAA(BaseWS):
         self.x509_req.sign(pkey=self.pkey, md='sha256')
         # save the CSR result to a file:
         f = open(filename, "w")
-        f.write(self.x509_req.as_pem())
+        f.write(str(self.x509_req.as_pem()))
         f.close()
         return True
 
@@ -341,7 +342,7 @@ class WSAA(BaseWS):
 
             # leer el ticket de acceso (si fue previamente solicitado)
             if not os.path.exists(fn) or os.path.getsize(fn) == 0 or \
-               os.path.getmtime(fn) + (DEFAULT_TTL) < time.time():
+                    os.path.getmtime(fn) + (DEFAULT_TTL) < time.time():
                 # ticket de acceso (TA) vencido, crear un nuevo req. (TRA)
                 if DEBUG:
                     print("Creando TRA...")
@@ -393,13 +394,13 @@ class WSAA(BaseWS):
 # busco el directorio de instalación (global para que no cambie si usan otra dll)
 INSTALL_DIR = WSAA.InstallDir = get_install_dir()
 
-
 if __name__ == "__main__":
 
     safe_console()
 
     if '--register' in sys.argv or '--unregister' in sys.argv:
         import pythoncom
+
         if TYPELIB:
             if '--register' in sys.argv:
                 tlb = os.path.abspath(os.path.join(INSTALL_DIR, "typelib", "wsaa.tlb"))
@@ -415,10 +416,12 @@ if __name__ == "__main__":
                                             pythoncom.SYS_WIN32)
                 print("Unregistered typelib")
         import win32com.server.register
+
         win32com.server.register.UseCommandLine(WSAA)
     elif "/Automate" in sys.argv:
         # MS seems to like /automate to run the class factories.
         import win32com.server.localserver
+
         # win32com.server.localserver.main()
         # start the server.
         win32com.server.localserver.serve([WSAA._reg_clsid_])
@@ -433,7 +436,8 @@ if __name__ == "__main__":
         # consultar el padrón online de AFIP si no se especificó razón social:
         empresa = len(args) > 3 and args[3] or ""
         if not empresa:
-            from .padron import PadronAFIP
+            from padron import PadronAFIP
+
             padron = PadronAFIP()
             ok = padron.Consultar(cuit)
             if ok and padron.denominacion:
