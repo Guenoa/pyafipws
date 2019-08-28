@@ -248,8 +248,8 @@ class WSAA(BaseWS):
         rsa_key_pair = RSA.gen_key(key_length, pub_exponent, callback)
         bio = BIO.MemoryBuffer()
         rsa_key_pair.save_key_bio(bio, chiper, callback)
-        f = open(filename, "w")
-        f.write(str(bio.read(None)))
+        f = open(filename, "wb")
+        f.write(bio.read(None))
         f.close()
         # create a public key to sign the certificate request:
         self.pkey = EVP.PKey(md='sha256')
@@ -285,8 +285,8 @@ class WSAA(BaseWS):
         self.x509_req.set_pubkey(pkey=self.pkey)
         self.x509_req.sign(pkey=self.pkey, md='sha256')
         # save the CSR result to a file:
-        f = open(filename, "w")
-        f.write(str(self.x509_req.as_pem()))
+        f = open(filename, "wb")
+        f.write(self.x509_req.as_pem())
         f.close()
         return True
 
